@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام إدارة الحملة الانتخابية</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --gold:#C9A84C;--gold-l:#F0D878;--gold-d:#8B6914;--gold-dim:rgba(201,168,76,0.15);
+  --bg:#060610;--s1:#0D0D1C;--s2:#13132A;--s3:#1A1A35;--s4:#222240;--s5:#2A2A4E;
+  --border:rgba(201,168,76,0.1);--bord2:rgba(201,168,76,0.3);--bord3:rgba(201,168,76,0.55);
+  --text:#F0EAD6;--dim:#8A8272;--dim2:#555070;
+  --green:#3DD68C;--red:#FF5C5C;--blue:#6CA6FF;--purple:#B06AFF;--orange:#FF9A3C;
+  --cyan:#3DD6D6;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── NOISE TEXTURE OVERLAY ── */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%,rgba(201,168,76,0.07) 0%,transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 110%,rgba(107,80,200,0.06) 0%,transparent 50%),
+    radial-gradient(ellipse 40% 30% at 50% 50%,rgba(201,168,76,0.02) 0%,transparent 60%);
+}
+
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--bord2);border-radius:3px;}
+
+/* ══ LOADING ══ */
+#loadingScreen{
+  position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+}
+.ld-emblem{
+  width:90px;height:90px;border-radius:50%;
+  background:conic-gradient(from 180deg,var(--gold-d),var(--gold),var(--gold-l),var(--gold),var(--gold-d));
+  display:flex;align-items:center;justify-content:center;font-size:40px;
+  animation:ldPulse 2s ease-in-out infinite;
+  box-shadow:0 0 50px rgba(201,168,76,0.3);
+}
+@keyframes ldPulse{0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(201,168,76,0.25);}50%{transform:scale(1.05);box-shadow:0 0 80px rgba(201,168,76,0.5);}}
+.ld-ring{width:110px;height:110px;position:absolute;border-radius:50%;border:1px solid transparent;border-top-color:var(--gold);border-right-color:rgba(201,168,76,0.3);animation:spin 1.5s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ld-label{font-size:14px;color:var(--dim);letter-spacing:2px;font-weight:600;}
+
+/* ══ LOGIN ══ */
+#loginScreen{position:fixed;inset:0;z-index:998;display:none;align-items:center;justify-content:center;background:var(--bg);padding:16px;}
+.login-wrap{width:min(460px,100%);}
+.login-header{text-align:center;margin-bottom:32px;}
+.login-crown{font-size:52px;display:block;margin-bottom:12px;animation:float 4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+.login-title{
+  font-size:26px;font-weight:900;
+  background:linear-gradient(135deg,var(--gold-d),var(--gold),var(--gold-l));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  letter-spacing:.5px;
+}
+.login-sub{font-size:13px;color:var(--dim);margin-top:6px;}
+
+.login-card{
+  background:linear-gradient(145deg,var(--s1),var(--s2));
+  border:1px solid var(--bord2);border-radius:24px;padding:32px 28px;
+  position:relative;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,0.7),inset 0 1px 0 rgba(201,168,76,0.1);
+}
+.login-card::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:200px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.login-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,0.15),transparent);}
+
+.seg{display:flex;background:var(--s3);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;margin-bottom:26px;}
+.seg-btn{flex:1;padding:11px;border:none;background:transparent;color:var(--dim);border-radius:9px;cursor:pointer;font-family:'Tajawal',sans-serif;font-size:14px;font-weight:700;transition:all .25s;}
+.seg-btn.on{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;box-shadow:0 4px 15px rgba(201,168,76,0.3);}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:11px;color:var(--dim);margin-bottom:7px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;}
+.inp{
+  width:100%;padding:13px 16px;
+  background:var(--s3);border:1px solid var(--border);border-radius:11px;
+  color:var(--text);font-family:'Tajawal',sans-serif;font-size:15px;
+  outline:none;transition:all .2s;text-align:right;
+}
+.inp:focus{border-color:var(--gold);background:var(--s4);box-shadow:0 0 0 3px rgba(201,168,76,0.08);}
+select.inp{cursor:pointer;}
+select.inp option{background:var(--s2);}
+
+.btn-login{
+  width:100%;padding:14px;margin-top:6px;
+  background:linear-gradient(135deg,var(--gold-d) 0%,var(--gold) 50%,var(--gold-l) 100%);
+  border:none;border-radius:12px;color:#000;
+  font-family:'Tajawal',sans-serif;font-size:16px;font-weight:900;
+  cursor:pointer;transition:all .25s;letter-spacing:.3px;
+  box-shadow:0 6px 20px rgba(201,168,76,0.35);
+  position:relative;overflow:hidden;
+}
+.btn-login::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,0.1),transparent);transform:translateX(-100%);transition:transform .4s;}
+.btn-login:hover::before{transform:translateX(100%);}
+.btn-login:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(201,168,76,0.5);}
+.btn-login:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.err-msg{color:var(--red);font-size:12px;text-align:center;margin-top:10px;display:none;padding:8px;background:rgba(255,92,92,0.08);border-radius:8px;border:1px solid rgba(255,92,92,0.2);}
+
+/* ══ APP ══ */
+#app{display:none;min-height:100vh;position:relative;z-index:1;}
+
+/* TOPBAR */
+.topbar{
+  position:sticky;top:0;z-index:50;height:58px;
+  background:rgba(6,6,16,0.88);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.tb-logo{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--gold-d),var(--gold));
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  box-shadow:0 3px 10px rgba(201,168,76,0.3);
+}
+.tb-title{font-size:14px;font-weight:800;color:var(--gold);}
+.tb-right{display:flex;align-items:center;gap:8px;}
+.chip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.chip-gold{background:rgba(201,168,76,0.12);color:var(--gold);border:1px solid var(--bord2);}
+.chip-green{background:rgba(61,214,140,0.1);color:var(--green);border:1px solid rgba(61,214,140,0.3);}
+.btn-out{padding:6px 13px;background:transparent;border:1px solid rgba(255,92,92,0.2);border-radius:8px;color:var(--dim);font-family:'Tajawal',sans-serif;font-size:12px;cursor:pointer;transition:all .2s;}
+.btn-out:hover{border-color:var(--red);color:var(--red);}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(6,6,16,0.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;padding:6px 0 max(6px,env(safe-area-inset-bottom));}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;background:transparent;border:none;cursor:pointer;font-family:'Tajawal',sans-serif;color:var(--dim);font-size:10px;font-weight:600;transition:all .2s;position:relative;}
+.bn .bni{font-size:20px;transition:transform .2s;}
+.bn.on{color:var(--gold);}
+.bn.on .bni{transform:scale(1.2);}
+.bn-dot{position:absolute;top:4px;right:calc(50% - 14px);width:6px;height:6px;background:var(--red);border-radius:50%;border:1px solid var(--bg);}
+
+/* MAIN */
+.main{padding:18px 14px 88px;max-width:900px;margin:0 auto;}
+
+/* ══ STATS ══ */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:22px;}
+@media(min-width:500px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
+.stat-card{
+  background:linear-gradient(145deg,var(--s1),var(--s2));
+  border:1px solid var(--border);border-radius:15px;padding:18px 15px;
+  position:relative;overflow:hidden;cursor:default;
+  transition:transform .2s,border-color .2s;
+}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--bord2);}
+.stat-card::before{content:'';position:absolute;top:-30px;right:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,0.08),transparent 70%);}
+.stat-icon{font-size:22px;margin-bottom:8px;}
+.stat-n{font-size:36px;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--gold),var(--gold-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-l{font-size:11px;color:var(--dim);margin-top:4px;font-weight:600;}
+
+/* CHART */
+.chart-wrap{background:linear-gradient(145deg,var(--s1),var(--s2));border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:22px;}
+.chart-title{font-size:13px;font-weight:800;color:var(--dim);margin-bottom:16px;display:flex;align-items:center;gap:6px;}
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:120px;}
+.chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;}
+.chart-bar-outer{width:100%;flex:1;display:flex;align-items:flex-end;border-radius:4px;}
+.chart-bar{
+  width:100%;border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg,var(--gold-l),var(--gold));
+  transition:height .6s cubic-bezier(.4,0,.2,1);
+  min-height:4px;position:relative;cursor:pointer;
+}
+.chart-bar:hover::after{content:attr(data-val);position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;color:var(--gold);white-space:nowrap;}
+.chart-label{font-size:10px;color:var(--dim);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.chart-num{font-size:11px;font-weight:900;color:var(--gold);}
+
+/* SECTION HEAD */
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;}
+.sh-left{display:flex;align-items:center;gap:8px;}
+.sh-accent{width:3px;height:18px;background:linear-gradient(180deg,var(--gold-l),var(--gold-d));border-radius:2px;}
+.sh-title{font-size:14px;font-weight:900;color:var(--text);}
+.sh-count{font-size:11px;color:var(--dim);background:var(--s3);padding:2px 8px;border-radius:10px;border:1px solid var(--border);}
+
+/* BUTTONS */
+.btn{padding:9px 18px;border-radius:10px;font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-p{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;box-shadow:0 4px 12px rgba(201,168,76,0.25);}
+.btn-p:hover:not(:disabled){opacity:.88;transform:translateY(-1px);box-shadow:0 6px 18px rgba(201,168,76,0.4);}
+.btn-g{background:transparent;border:1px solid var(--bord2);color:var(--gold);}
+.btn-g:hover{background:var(--gold-dim);}
+.btn-r{background:transparent;border:1px solid rgba(255,92,92,0.2);color:var(--red);}
+.btn-r:hover{background:rgba(255,92,92,0.08);}
+.btn-green{background:transparent;border:1px solid rgba(61,214,140,0.25);color:var(--green);}
+.btn-green:hover{background:rgba(61,214,140,0.06);}
+.btn-blue{background:transparent;border:1px solid rgba(108,166,255,0.25);color:var(--blue);}
+.btn-blue:hover{background:rgba(108,166,255,0.06);}
+.btn-xs{padding:4px 10px;font-size:11px;border-radius:7px;}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:9px;}
+
+/* PILLAR CARDS */
+.pillars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px;margin-bottom:24px;}
+.p-card{
+  background:linear-gradient(145deg,var(--s1),var(--s2));
+  border:1px solid var(--border);border-radius:17px;padding:18px;
+  transition:all .28s;position:relative;overflow:hidden;cursor:pointer;
+}
+.p-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(201,168,76,0.4),transparent);opacity:0;transition:opacity .3s;}
+.p-card:hover{border-color:var(--bord2);transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,0.6);}
+.p-card:hover::before{opacity:1;}
+
+.p-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.p-avatar{
+  width:52px;height:52px;border-radius:12px;overflow:hidden;
+  background:var(--s4);border:2px solid var(--bord2);
+  display:flex;align-items:center;justify-content:center;font-size:23px;
+  flex-shrink:0;position:relative;
+}
+.p-avatar img{width:100%;height:100%;object-fit:cover;}
+.p-avatar-edit{position:absolute;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;font-size:14px;border-radius:10px;}
+.p-avatar:hover .p-avatar-edit{display:flex;}
+
+.p-name{font-size:15px;font-weight:900;margin-bottom:3px;line-height:1.2;}
+.p-info{font-size:11px;color:var(--dim);margin-bottom:1px;}
+
+.p-code-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;background:rgba(201,168,76,0.07);
+  border:1px solid rgba(201,168,76,0.2);border-radius:7px;
+  font-size:11px;color:var(--gold);font-weight:800;letter-spacing:1.5px;
+  margin:8px 0;
+}
+
+.p-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
+.p-count{font-size:30px;font-weight:900;color:var(--gold);line-height:1;}
+.p-count-lbl{font-size:10px;color:var(--dim);}
+
+.prog{height:4px;background:var(--s4);border-radius:3px;margin-top:10px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gold-d),var(--gold),var(--gold-l));border-radius:3px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+
+/* VOTER LIST */
+.vlist{background:linear-gradient(145deg,var(--s1),var(--s2));border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:22px;}
+.vlist-head{padding:13px 16px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.search{display:flex;align-items:center;gap:7px;background:var(--s3);border:1px solid var(--border);border-radius:9px;padding:8px 12px;flex:1;min-width:160px;transition:border-color .2s;}
+.search:focus-within{border-color:var(--bord2);}
+.search input{background:transparent;border:none;outline:none;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;width:100%;text-align:right;}
+.search-ico{color:var(--dim);font-size:14px;}
+
+.vrow{display:flex;align-items:center;gap:11px;padding:12px 16px;border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer;}
+.vrow:last-child{border-bottom:none;}
+.vrow:hover{background:rgba(201,168,76,0.03);}
+.v-num{width:25px;height:25px;border-radius:6px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--dim);flex-shrink:0;font-weight:700;}
+.v-av{width:44px;height:44px;border-radius:10px;background:var(--s4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden;}
+.v-av img{width:100%;height:100%;object-fit:cover;}
+.v-info{flex:1;min-width:0;}
+.v-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.v-id{font-size:11px;color:var(--dim);direction:ltr;text-align:right;}
+.v-src{font-size:10px;color:var(--dim2);margin-top:1px;}
+.v-badge{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;background:rgba(201,168,76,0.08);color:var(--gold);border:1px solid var(--border);white-space:nowrap;}
+
+.empty{text-align:center;padding:48px 20px;color:var(--dim);}
+.empty-ico{font-size:44px;margin-bottom:12px;}
+.empty p{font-size:13px;}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center;padding:14px;}
+.overlay.open{display:flex;}
+.modal{
+  background:linear-gradient(145deg,var(--s1),var(--s2));
+  border:1px solid var(--bord2);border-radius:22px;
+  padding:28px 24px;width:min(460px,100%);
+  position:relative;max-height:90vh;overflow-y:auto;
+  box-shadow:0 40px 100px rgba(0,0,0,0.8),inset 0 1px 0 rgba(201,168,76,0.1);
+}
+.modal::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.m-title{font-size:17px;font-weight:900;color:var(--gold);margin-bottom:22px;display:flex;align-items:center;gap:8px;}
+.m-close{position:absolute;top:14px;left:14px;width:28px;height:28px;background:var(--s4);border:none;border-radius:7px;color:var(--dim);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.m-close:hover{background:rgba(255,92,92,0.15);color:var(--red);}
+.m-foot{display:flex;gap:9px;margin-top:20px;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+@media(max-width:380px){.frow{grid-template-columns:1fr;}}
+
+/* PHOTO UPLOAD */
+.photo-up{
+  width:72px;height:72px;border-radius:14px;background:var(--s3);
+  border:2px dashed var(--bord2);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:24px;margin:0 auto 18px;overflow:hidden;
+  transition:all .2s;position:relative;
+}
+.photo-up:hover{border-color:var(--gold);background:var(--s4);}
+.photo-up img{width:100%;height:100%;object-fit:cover;}
+.photo-up-lbl{position:absolute;bottom:3px;font-size:9px;color:var(--dim);background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:4px;}
+
+/* CODE DISPLAY */
+.code-display{
+  background:var(--s3);border:1px solid var(--bord2);border-radius:11px;
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.code-val{font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px;}
+.code-sub{font-size:11px;color:var(--dim);margin-top:3px;}
+
+/* REVIEW */
+.review-card{background:var(--s3);border:1px solid var(--bord2);border-radius:15px;padding:18px;margin-bottom:16px;display:flex;align-items:center;gap:15px;}
+.rev-av{width:68px;height:68px;border-radius:13px;background:var(--s4);border:2px solid var(--bord2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px;}
+.rev-av img{width:100%;height:100%;object-fit:cover;}
+
+/* DETAIL */
+.detail-hdr{display:flex;align-items:center;gap:15px;background:var(--s3);border-radius:14px;padding:18px;margin-bottom:18px;}
+.d-big-av{width:78px;height:78px;border-radius:15px;background:var(--s4);border:2px solid var(--bord2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:34px;}
+.d-big-av img{width:100%;height:100%;object-fit:cover;}
+.d-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.d-row:last-child{border-bottom:none;}
+.d-key{font-size:11px;color:var(--dim);font-weight:600;}
+.d-val{font-size:13px;font-weight:800;}
+.pillar-box{background:var(--s3);border:1px solid var(--border);border-radius:13px;padding:14px;display:flex;align-items:center;gap:12px;margin-top:14px;}
+.pb-av{width:44px;height:44px;border-radius:10px;background:var(--s4);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.pb-av img{width:100%;height:100%;object-fit:cover;}
+
+/* PILLAR PROFILE */
+.profile-box{background:linear-gradient(145deg,var(--s1),var(--s2));border:1px solid var(--bord2);border-radius:18px;padding:22px 18px;margin-bottom:20px;position:relative;overflow:hidden;}
+.profile-box::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+
+/* EXPORT BAR */
+.export-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--s2);border:1px solid var(--bord2);border-radius:12px;padding:11px 22px;font-size:13px;font-weight:700;color:var(--gold);z-index:9999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* CONFIRM DIALOG */
+.confirm-box{background:var(--s3);border:1px solid rgba(255,92,92,0.3);border-radius:13px;padding:18px;margin-bottom:16px;text-align:center;}
+.confirm-box p{font-size:14px;color:var(--text);margin-bottom:4px;font-weight:700;}
+.confirm-box small{font-size:12px;color:var(--red);}
+
+/* SPINNER */
+.spin{width:15px;height:15px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .6s linear infinite;display:inline-block;}
+.spin-g{border:2px solid var(--border);border-top-color:var(--gold);}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.fu{animation:fadeUp .3s ease forwards;}
+@keyframes scaleIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+.si{animation:scaleIn .2s ease forwards;}
+
+/* DIVIDER */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:20px 0;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div style="position:relative;width:110px;height:110px;display:flex;align-items:center;justify-content:center;">
+    <div class="ld-ring"></div>
+    <div class="ld-emblem">🗳️</div>
+  </div>
+  <div class="ld-label">جاري التحميل...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-wrap">
+    <div class="login-header">
+      <span class="login-crown">🏛️</span>
+      <div class="login-title">نظام إدارة الحملة</div>
+      <div class="login-sub">منصة متابعة الناخبين والركائز الانتخابية</div>
+    </div>
+    <div class="login-card">
+      <div class="seg">
+        <button class="seg-btn on" onclick="setMode('admin')">🏆 المرشح</button>
+        <button class="seg-btn" onclick="setMode('pillar')">📍 مسؤول ركيزة</button>
+      </div>
+      <div id="fAdmin">
+        <div class="field">
+          <label>رمز المرشح السري</label>
+          <input class="inp" type="password" id="iPin" placeholder="••••••" />
+        </div>
+      </div>
+      <div id="fPillar" style="display:none">
+        <div class="field">
+          <label>كود الركيزة</label>
+          <input class="inp" type="text" id="iCode" placeholder="مثال: RK-7842" style="text-transform:uppercase;letter-spacing:2px;font-size:18px;font-weight:800;text-align:center;" />
+        </div>
+      </div>
+      <button class="btn-login" id="loginBtn" onclick="login()">دخول ←</button>
+      <div class="err-msg" id="loginErr">❌ بيانات خاطئة، حاول مرة ثانية</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-logo">🗳️</div>
+      <div class="tb-title">الحملة الانتخابية</div>
+    </div>
+    <div class="tb-right">
+      <div class="chip" id="roleChip"></div>
+      <button class="btn-out" onclick="logout()">خروج</button>
+    </div>
+  </div>
+  <div class="main" id="main"></div>
+  <nav class="bnav" id="bnav"></nav>
+</div>
+
+<!-- MODAL: Add Pillar -->
+<div class="overlay" id="mAddPillar">
+  <div class="modal si">
+    <button class="m-close" onclick="closeM('mAddPillar')">✕</button>
+    <div class="m-title">🏛️ إضافة ركيزة جديدة</div>
+    <div class="code-display">
+      <div>
+        <div class="code-val" id="generatedCode">—</div>
+        <div class="code-sub">الكود المولّد تلقائياً للركيزة</div>
+      </div>
+      <button class="btn btn-g btn-xs" onclick="genCode()">🔄 جديد</button>
+    </div>
+    <div class="frow">
+      <div class="field"><label>اسم الركيزة *</label><input class="inp" id="pName" placeholder="ركيزة الكرخ" /></div>
+      <div class="field"><label>اسم المسؤول *</label><input class="inp" id="pManager" placeholder="الاسم الكامل" /></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>رقم الهاتف</label><input class="inp" id="pPhone" placeholder="07XX XXX XXXX" /></div>
+      <div class="field"><label>المنطقة / الموقع</label><input class="inp" id="pLocation" placeholder="الكرخ - حي الجامعة" /></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-p" id="btnAddP" onclick="addPillar()" style="flex:1">إضافة الركيزة</button>
+      <button class="btn btn-g" onclick="closeM('mAddPillar')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add Voter -->
+<div class="overlay" id="mAddVoter">
+  <div class="modal si">
+    <button class="m-close" onclick="closeM('mAddVoter')">✕</button>
+    <div class="m-title">👤 إضافة ناخب جديد</div>
+    <div class="photo-up" id="photoUp" onclick="document.getElementById('photoFile').click()">
+      📷
+      <span class="photo-up-lbl">اضغط لرفع صورة</span>
+      <input type="file" id="photoFile" accept="image/*" style="display:none" onchange="handlePhoto(this)" />
+    </div>
+    <div class="field"><label>الاسم الكامل (رباعي) *</label><input class="inp" id="vName" placeholder="أحمد محمد علي حسين" /></div>
+    <div class="field"><label>رقم البطاقة الوطنية *</label><input class="inp" id="vNid" placeholder="00000000000" maxlength="12" inputmode="numeric" /></div>
+    <div class="m-foot">
+      <button class="btn btn-p" onclick="prepareReview()" style="flex:1">📋 مراجعة قبل الإرسال</button>
+      <button class="btn btn-g" onclick="closeM('mAddVoter')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Review -->
+<div class="overlay" id="mReview">
+  <div class="modal si">
+    <button class="m-close" onclick="closeM('mReview')">✕</button>
+    <div class="m-title">📋 مراجعة البيانات</div>
+    <div class="review-card">
+      <div class="rev-av" id="revAv">👤</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900;margin-bottom:4px" id="revName">—</div>
+        <div style="font-size:12px;color:var(--dim);direction:ltr;text-align:right" id="revNid">—</div>
+        <div style="font-size:11px;color:var(--dim2);margin-top:6px" id="revPTag">—</div>
+      </div>
+    </div>
+    <div style="background:rgba(61,214,140,0.06);border:1px solid rgba(61,214,140,0.15);border-radius:10px;padding:11px 14px;font-size:12px;color:var(--dim);text-align:center;margin-bottom:16px;">
+      ✅ راجع المعلومات جيداً — بعد الإرسال ستظهر فوراً عند المرشح
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-g btn-sm" onclick="closeM('mReview');openM('mAddVoter')">← تعديل</button>
+      <button class="btn btn-green btn-sm" id="btnConfirmV" onclick="confirmVoter()">✅ إرسال للمرشح</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Voter Detail -->
+<div class="overlay" id="mVoterDetail">
+  <div class="modal si">
+    <button class="m-close" onclick="closeM('mVoterDetail')">✕</button>
+    <div class="m-title">تفاصيل الناخب</div>
+    <div id="voterDetailContent"></div>
+    <div class="m-foot">
+      <button class="btn btn-r btn-sm" id="dDelBtn">🗑️ حذف</button>
+      <button class="btn btn-g btn-sm" onclick="closeM('mVoterDetail')" style="margin-right:auto">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Confirm Delete -->
+<div class="overlay" id="mConfirm">
+  <div class="modal si" style="max-width:340px">
+    <div class="m-title" style="justify-content:center;font-size:15px">⚠️ تأكيد الحذف</div>
+    <div class="confirm-box">
+      <p id="confirmMsg">هل أنت متأكد؟</p>
+      <small id="confirmSub">لا يمكن التراجع عن هذا الإجراء</small>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-r" id="confirmOkBtn" style="flex:1">نعم، احذف</button>
+      <button class="btn btn-g" onclick="closeM('mConfirm')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════
+     FIREBASE + LOGIC
+══════════════════════════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import {
+  getFirestore, collection, doc,
+  addDoc, setDoc, deleteDoc, getDocs,
+  onSnapshot, query, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import {
+  getStorage, ref as sRef,
+  uploadString, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/11.0.0/firebase-storage.js";
+
+// ── CONFIG ──
+const fbApp = initializeApp({
+  apiKey:"AIzaSyA8HmOri4B5cfdcuVvKvzfcgvHqUFrGXfE",
+  authDomain:"they56-e6a3a.firebaseapp.com",
+  projectId:"they56-e6a3a",
+  storageBucket:"they56-e6a3a.firebasestorage.app",
+  messagingSenderId:"358044115812",
+  appId:"1:358044115812:web:dfaf5665f1bd23b9a7d071"
+});
+const db = getFirestore(fbApp);
+const storage = getStorage(fbApp);
+
+// ── STATE ──
+const ADMIN_PIN = 'NAJF9998';
+let me = null;
+let adminTab = 'dashboard';
+let filterPillar = null;
+let tmpPhoto = null;
+let pendingVoter = null;
+let loginMode = 'admin';
+let pillars = [];
+let voters = [];
+let unsubP = null, unsubV = null;
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+const $ = id => document.getElementById(id);
+const show = (id,d='block') => $(id).style.display=d;
+const hide = id => $(id).style.display='none';
+window.openM  = id => $(id).classList.add('open');
+window.closeM = id => $(id).classList.remove('open');
+
+window.toast = (msg, dur=2800) => {
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+};
+
+function votersOf(pid){ return voters.filter(v=>v.pillarId===pid); }
+
+function spinBtn(id, on){
+  const b=$(id);
+  if(!b) return;
+  if(on){ b._txt=b.innerHTML; b.disabled=true; b.innerHTML=`<span class="spin ${id.includes('login')?'spin-g':''}"></span>`; }
+  else  { b.disabled=false; b.innerHTML=b._txt||''; }
+}
+
+// ── CODE GENERATOR ──
+window.genCode = function(){
+  const letters='ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits='0123456789';
+  const L1 = letters[Math.floor(Math.random()*letters.length)];
+  const L2 = letters[Math.floor(Math.random()*letters.length)];
+  const N  = Array.from({length:4},()=>digits[Math.floor(Math.random()*10)]).join('');
+  const code = `${L1}${L2}-${N}`;
+  $('generatedCode').textContent = code;
+  return code;
+};
+
+// ══════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════
+async function boot(){
+  try {
+    const snap = await getDocs(collection(db,'pillars'));
+    pillars = snap.docs.map(d=>({id:d.id,...d.data()}));
+  } catch(e){ console.warn('boot fetch:', e); }
+  hide('loadingScreen');
+  show('loginScreen','flex');
+}
+boot();
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+window.setMode = function(m){
+  loginMode=m;
+  document.querySelectorAll('.seg-btn').forEach((b,i)=>
+    b.classList.toggle('on',(i===0&&m==='admin')||(i===1&&m==='pillar')));
+  $('fAdmin').style.display  = m==='admin'  ? 'block':'none';
+  $('fPillar').style.display = m==='pillar' ? 'block':'none';
+  hide('loginErr');
+};
+
+window.login = async function(){
+  hide('loginErr');
+  spinBtn('loginBtn',true);
+  try {
+    if(loginMode==='admin'){
+      if($('iPin').value===ADMIN_PIN){ me={role:'admin'}; await launchApp(); }
+      else { show('loginErr'); spinBtn('loginBtn',false); }
+    } else {
+      const code=$('iCode').value.trim().toUpperCase();
+      // refresh pillars first
+      const snap=await getDocs(collection(db,'pillars'));
+      pillars=snap.docs.map(d=>({id:d.id,...d.data()}));
+      const p=pillars.find(x=>x.code===code);
+      if(p){ me={role:'pillar',pillarId:p.id,pillarName:p.name}; await launchApp(); }
+      else { show('loginErr'); spinBtn('loginBtn',false); }
+    }
+  } catch(e){ toast('❌ خطأ في الاتصال'); spinBtn('loginBtn',false); }
+};
+
+window.logout = function(){
+  if(unsubP) unsubP(); if(unsubV) unsubV();
+  me=null; filterPillar=null; adminTab='dashboard'; pillars=[]; voters=[];
+  hide('app'); show('loginScreen','flex');
+  $('iPin').value=''; $('iCode').value='';
+  $('loginBtn').disabled=false; $('loginBtn').innerHTML='دخول ←';
+};
+
+async function launchApp(){
+  hide('loginScreen'); show('app');
+  const chip=$('roleChip');
+
+  unsubP = onSnapshot(query(collection(db,'pillars'),orderBy('createdAt','asc')), snap=>{
+    pillars=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(me) renderCurrent();
+  });
+  unsubV = onSnapshot(query(collection(db,'voters'),orderBy('createdAt','asc')), snap=>{
+    voters=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(me) renderCurrent();
+  });
+
+  if(me.role==='admin'){
+    chip.textContent='🏆 المرشح'; chip.className='chip chip-gold';
+    renderAdminNav(); renderAdmin();
+  } else {
+    chip.textContent='📍 '+me.pillarName; chip.className='chip chip-green';
+    renderPillarNav(); renderPillarView();
+  }
+}
+
+function renderCurrent(){
+  if(!me) return;
+  if(me.role==='admin') renderAdmin();
+  else renderPillarView();
+}
+
+// ══════════════════════════════════════
+// ADMIN NAV & ROUTING
+// ══════════════════════════════════════
+window.setAdminTab = function(t){ adminTab=t; filterPillar=null; renderAdminNav(); renderAdmin(); };
+
+function renderAdminNav(){
+  $('bnav').innerHTML=`
+    <button class="bn ${adminTab==='dashboard'?'on':''}" onclick="setAdminTab('dashboard')">
+      <span class="bni">📊</span>الرئيسية
+    </button>
+    <button class="bn ${adminTab==='pillars'?'on':''}" onclick="setAdminTab('pillars')">
+      <span class="bni">🏛️</span>الركائز
+    </button>
+    <button class="bn ${adminTab==='voters'?'on':''}" onclick="setAdminTab('voters')">
+      <span class="bni">👥</span>الناخبون
+    </button>
+  `;
+}
+
+function renderAdmin(){
+  if(adminTab==='dashboard') renderDashboard();
+  else if(adminTab==='pillars') renderPillarsTab();
+  else renderVotersTab();
+}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  const total=voters.length, pCount=pillars.length;
+  const counts=pillars.map(p=>votersOf(p.id).length);
+  const maxC=Math.max(...counts,1);
+  const avg=pCount?Math.round(total/pCount):0;
+  const maxV=Math.max(...counts,0);
+
+  let html=`<div class="fu">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-icon">🗳️</div><div class="stat-n">${total}</div><div class="stat-l">إجمالي الناخبين</div></div>
+    <div class="stat-card"><div class="stat-icon">🏛️</div><div class="stat-n">${pCount}</div><div class="stat-l">عدد الركائز</div></div>
+    <div class="stat-card"><div class="stat-icon">📈</div><div class="stat-n">${avg}</div><div class="stat-l">متوسط / ركيزة</div></div>
+    <div class="stat-card"><div class="stat-icon">🥇</div><div class="stat-n">${maxV}</div><div class="stat-l">أكبر ركيزة</div></div>
+  </div>`;
+
+  // Chart
+  if(pillars.length>0){
+    html+=`<div class="chart-wrap">
+      <div class="chart-title">📊 توزيع الناخبين على الركائز</div>
+      <div class="chart-bars">`;
+    pillars.forEach(p=>{
+      const cnt=votersOf(p.id).length;
+      const pct=Math.round(cnt/maxC*100)||2;
+      html+=`<div class="chart-bar-wrap">
+        <div class="chart-num">${cnt}</div>
+        <div class="chart-bar-outer">
+          <div class="chart-bar" style="height:${pct}%" data-val="${cnt}" onclick="goVotersByPillar('${p.id}')"></div>
+        </div>
+        <div class="chart-label">${p.name.replace('ركيزة ','')}</div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+
+  // Pillars overview
+  html+=`<div class="sh">
+    <div class="sh-left"><div class="sh-accent"></div><div class="sh-title">الركائز</div><div class="sh-count">${pCount}</div></div>
+    <button class="btn btn-sm btn-g" onclick="setAdminTab('pillars')">إدارة ←</button>
+  </div>
+  <div class="pillars-grid">`;
+
+  pillars.forEach(p=>{
+    const cnt=votersOf(p.id).length;
+    const pct=Math.round(cnt/maxC*100);
+    html+=`<div class="p-card" onclick="goVotersByPillar('${p.id}')">
+      <div class="p-head">
+        <div class="p-avatar">${p.photo?`<img src="${p.photo}"/>`:'👤'}</div>
+        <div style="flex:1;padding-right:10px">
+          <div class="p-name">${p.name}</div>
+          <div class="p-info">👤 ${p.manager}</div>
+          <div class="p-info">📍 ${p.location||'—'}</div>
+        </div>
+      </div>
+      <div class="p-footer">
+        <div><div class="p-count">${cnt}</div><div class="p-count-lbl">ناخب</div></div>
+        <span style="font-size:11px;color:var(--dim)">${pct}%</span>
+      </div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+
+  html+=`</div>`;
+
+  // Recent
+  const recent=[...voters].slice(-6).reverse();
+  html+=`<div class="sh">
+    <div class="sh-left"><div class="sh-accent"></div><div class="sh-title">آخر الإضافات</div></div>
+    <button class="btn btn-sm btn-g" onclick="setAdminTab('voters')">الكل ←</button>
+  </div>
+  <div class="vlist">`;
+  if(recent.length===0) html+=`<div class="empty"><div class="empty-ico">👥</div><p>لا يوجد ناخبون بعد</p></div>`;
+  else recent.forEach((v,i)=>{ html+=voterRow(v,i+1); });
+  html+=`</div></div>`;
+
+  $('main').innerHTML=html;
+}
+
+// ── PILLARS TAB ──
+function renderPillarsTab(){
+  const maxC=Math.max(...pillars.map(p=>votersOf(p.id).length),1);
+  let html=`<div class="fu">
+  <div class="export-bar">
+    <button class="btn btn-sm btn-blue" onclick="exportPillarsExcel()">📥 Excel الركائز</button>
+    <button class="btn btn-sm btn-blue" onclick="exportAllVotersExcel()">📥 Excel الناخبين</button>
+  </div>
+  <div class="sh">
+    <div class="sh-left"><div class="sh-accent"></div><div class="sh-title">الركائز</div><div class="sh-count">${pillars.length}</div></div>
+    <button class="btn btn-sm btn-p" onclick="openAddPillarModal()">+ ركيزة جديدة</button>
+  </div>
+  <div class="pillars-grid">`;
+
+  pillars.forEach(p=>{
+    const cnt=votersOf(p.id).length;
+    const pct=Math.round(cnt/maxC*100);
+    html+=`<div class="p-card">
+      <div class="p-head">
+        <div class="p-avatar">${p.photo?`<img src="${p.photo}"/>`:'👤'}</div>
+        <button class="btn btn-r btn-xs" onclick="event.stopPropagation();confirmDelete('pillar','${p.id}','${p.name}')">حذف</button>
+      </div>
+      <div class="p-name">${p.name}</div>
+      <div class="p-info">👤 ${p.manager}</div>
+      <div class="p-info">📍 ${p.location||'—'}</div>
+      <div class="p-info">📞 ${p.phone||'—'}</div>
+      <div class="p-code-badge">🔑 ${p.code}</div>
+      <div class="p-footer">
+        <div><div class="p-count">${cnt}</div><div class="p-count-lbl">ناخب</div></div>
+        <button class="btn btn-g btn-xs" onclick="goVotersByPillar('${p.id}')">عرض الناخبين</button>
+      </div>
+      <div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+
+  if(pillars.length===0) html+=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🏛️</div><p>لا يوجد ركائز، أضف ركيزة جديدة</p></div>`;
+  html+=`</div></div>`;
+  $('main').innerHTML=html;
+}
+
+// ── VOTERS TAB ──
+function renderVotersTab(){
+  const list = filterPillar ? voters.filter(v=>v.pillarId===filterPillar) : voters;
+  const title = filterPillar ? (pillars.find(p=>p.id===filterPillar)?.name||'ركيزة') : 'جميع الناخبين';
+
+  let html=`<div class="fu">
+  <div class="export-bar">
+    <button class="btn btn-sm btn-blue" onclick="exportVotersExcel('${filterPillar||''}')">📥 تصدير Excel</button>
+    <button class="btn btn-sm btn-blue" onclick="exportVotersPrint('${filterPillar||''}')">🖨️ طباعة</button>
+  </div>
+  <div class="sh">
+    <div class="sh-left"><div class="sh-accent"></div><div class="sh-title">${title}</div><div class="sh-count">${list.length}</div></div>
+    ${filterPillar?`<button class="btn btn-g btn-sm" onclick="filterPillar=null;renderVotersTab()">الكل ✕</button>`:''}
+  </div>
+  <div class="vlist">
+    <div class="vlist-head">
+      <div class="search"><span class="search-ico">🔍</span>
+        <input placeholder="ابحث باسم أو رقم بطاقة..." oninput="filterRows(this.value)" />
+      </div>
+    </div>`;
+
+  if(list.length===0) html+=`<div class="empty"><div class="empty-ico">👥</div><p>لا يوجد ناخبون</p></div>`;
+  else list.forEach((v,i)=>{ html+=voterRow(v,i+1); });
+  html+=`</div></div>`;
+  $('main').innerHTML=html;
+}
+
+function voterRow(v,num){
+  const p=pillars.find(x=>x.id===v.pillarId);
+  return `<div class="vrow" onclick="openVoterDetail('${v.id}')">
+    <div class="v-num">${num}</div>
+    <div class="v-av">${v.photo?`<img src="${v.photo}"/>`:'👤'}</div>
+    <div class="v-info">
+      <div class="v-name">${v.name}</div>
+      <div class="v-id">${v.nationalId}</div>
+      ${p?`<div class="v-src">📍 ${p.name}</div>`:''}
+    </div>
+    ${p?`<div class="v-badge">${p.name}</div>`:''}
+  </div>`;
+}
+
+window.filterRows = q => {
+  document.querySelectorAll('.vrow').forEach(r=>{
+    r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'flex':'none';
+  });
+};
+
+window.goVotersByPillar = pid => { adminTab='voters'; filterPillar=pid; renderAdminNav(); renderVotersTab(); };
+
+window.openVoterDetail = vid => {
+  const v=voters.find(x=>x.id===vid); if(!v) return;
+  const p=pillars.find(x=>x.id===v.pillarId);
+  let html=`
+    <div class="detail-hdr">
+      <div class="d-big-av">${v.photo?`<img src="${v.photo}"/>`:'👤'}</div>
+      <div>
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">${v.name}</div>
+        <div style="font-size:11px;color:var(--dim)">أُضيف: ${v.addedAt||'—'}</div>
+      </div>
+    </div>
+    <div class="d-row"><span class="d-key">رقم البطاقة الوطنية</span><span class="d-val" style="direction:ltr">${v.nationalId}</span></div>`;
+  if(p){
+    html+=`
+    <div class="divider"></div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:8px;font-weight:700">📍 الركيزة المُرسِلة</div>
+    <div class="pillar-box">
+      <div class="pb-av">${p.photo?`<img src="${p.photo}"/>`:'👤'}</div>
+      <div>
+        <div style="font-size:14px;font-weight:900">${p.name}</div>
+        <div style="font-size:11px;color:var(--dim)">👤 ${p.manager}</div>
+        <div style="font-size:11px;color:var(--dim)">📍 ${p.location||'—'}</div>
+        <div style="font-size:11px;color:var(--dim)">📞 ${p.phone||'—'}</div>
+        <div class="p-code-badge" style="margin-top:6px">🔑 ${p.code}</div>
+      </div>
+    </div>`;
+  }
+  $('voterDetailContent').innerHTML=html;
+  $('dDelBtn').onclick=()=>{ confirmDelete('voter',vid,v.name); closeM('mVoterDetail'); };
+  openM('mVoterDetail');
+};
+
+// ══════════════════════════════════════
+// PILLAR VIEW
+// ══════════════════════════════════════
+function renderPillarNav(){
+  $('bnav').innerHTML=`<button class="bn on"><span class="bni">👥</span>ناخبيّ</button>`;
+}
+
+function renderPillarView(){
+  const p=pillars.find(x=>x.id===me.pillarId);
+  if(!p){ $('main').innerHTML=`<div class="empty"><div class="empty-ico">⚠️</div><p>تعذّر تحميل الركيزة</p></div>`; return; }
+  const myV=votersOf(me.pillarId);
+
+  let html=`<div class="fu">
+  <div class="profile-box">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div class="p-avatar" style="width:60px;height:60px;cursor:pointer" onclick="document.getElementById('pAvatarFile').click()">
+        ${p.photo?`<img src="${p.photo}"/>`:'👤'}
+        <div class="p-avatar-edit">📷</div>
+        <input type="file" id="pAvatarFile" accept="image/*" style="display:none" onchange="updatePillarPhoto(this)" />
+      </div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900">${p.name}</div>
+        <div style="font-size:12px;color:var(--dim)">👤 ${p.manager}</div>
+        <div style="font-size:12px;color:var(--dim)">📍 ${p.location||'—'}</div>
+        <div style="font-size:11px;color:var(--dim2)">📞 ${p.phone||'—'}</div>
+      </div>
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-size:34px;font-weight:900;background:linear-gradient(135deg,var(--gold),var(--gold-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent">${myV.length}</div>
+        <div style="font-size:10px;color:var(--dim)">ناخب</div>
+      </div>
+    </div>
+    <div style="background:var(--s3);border:1px solid var(--border);border-radius:9px;padding:9px 13px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:11px;color:var(--dim)">🔑 كود الدخول الخاص بك</span>
+      <span style="font-size:18px;font-weight:900;color:var(--gold);letter-spacing:2px">${p.code}</span>
+    </div>
+  </div>
+
+  <div class="sh">
+    <div class="sh-left"><div class="sh-accent"></div><div class="sh-title">الناخبون</div><div class="sh-count">${myV.length}</div></div>
+    <button class="btn btn-p btn-sm" onclick="openAddVoterModal()">+ إضافة ناخب</button>
+  </div>
+  <div class="vlist">
+    <div class="vlist-head">
+      <div class="search"><span class="search-ico">🔍</span>
+        <input placeholder="ابحث..." oninput="filterRows(this.value)" />
+      </div>
+    </div>`;
+
+  if(myV.length===0) html+=`<div class="empty"><div class="empty-ico">👥</div><p>أضف أول ناخب لركيزتك!</p></div>`;
+  else myV.forEach((v,i)=>{
+    html+=`<div class="vrow" id="vr_${v.id}" style="cursor:default">
+      <div class="v-num">${i+1}</div>
+      <div class="v-av">${v.photo?`<img src="${v.photo}"/>`:'👤'}</div>
+      <div class="v-info">
+        <div class="v-name">${v.name}</div>
+        <div class="v-id">${v.nationalId}</div>
+      </div>
+      <button class="btn btn-r btn-xs" onclick="confirmDelete('voter','${v.id}','${v.name}')">حذف</button>
+    </div>`;
+  });
+  html+=`</div></div>`;
+  $('main').innerHTML=html;
+}
+
+window.openAddVoterModal = function(){
+  tmpPhoto=null;
+  $('vName').value=''; $('vNid').value='';
+  $('photoUp').innerHTML=`📷<span class="photo-up-lbl">اضغط لرفع صورة</span><input type="file" id="photoFile" accept="image/*" style="display:none" onchange="handlePhoto(this)" />`;
+  openM('mAddVoter');
+};
+
+window.handlePhoto = function(input){
+  const f=input.files[0]; if(!f) return;
+  const img=new Image(), url=URL.createObjectURL(f);
+  img.onload=()=>{
+    const MAX=500, c=document.createElement('canvas');
+    let w=img.width, h=img.height;
+    if(w>h){ if(w>MAX){h=h*MAX/w;w=MAX;} } else { if(h>MAX){w=w*MAX/h;h=MAX;} }
+    c.width=w; c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    tmpPhoto=c.toDataURL('image/jpeg',.78);
+    $('photoUp').innerHTML=`<img src="${tmpPhoto}"/><input type="file" id="photoFile" accept="image/*" style="display:none" onchange="handlePhoto(this)" />`;
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
+};
+
+window.prepareReview = function(){
+  const name=$('vName').value.trim(), nid=$('vNid').value.trim();
+  if(!name||!nid){ toast('⚠️ أكمل الاسم ورقم البطاقة'); return; }
+  pendingVoter={name,nationalId:nid,photo:tmpPhoto};
+  $('revName').textContent=name; $('revNid').textContent=nid;
+  const p=pillars.find(x=>x.id===me.pillarId);
+  $('revPTag').textContent=`📍 ${p?.name||''} — 👤 ${p?.manager||''}`;
+  $('revAv').innerHTML=tmpPhoto?`<img src="${tmpPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:11px"/>`:'👤';
+  closeM('mAddVoter'); openM('mReview');
+};
+
+window.confirmVoter = async function(){
+  if(!pendingVoter) return;
+  spinBtn('btnConfirmV',true);
+  try {
+    let photoURL=null;
+    if(pendingVoter.photo){
+      const r=sRef(storage,`voters/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+      await uploadString(r,pendingVoter.photo,'data_url');
+      photoURL=await getDownloadURL(r);
+    }
+    await addDoc(collection(db,'voters'),{
+      name:pendingVoter.name,
+      nationalId:pendingVoter.nationalId,
+      photo:photoURL,
+      pillarId:me.pillarId,
+      addedAt:new Date().toLocaleDateString('ar-IQ'),
+      createdAt:serverTimestamp()
+    });
+    pendingVoter=null;
+    closeM('mReview');
+    toast('✅ تم إرسال الناخب للمرشح بنجاح');
+  } catch(e){ console.error(e); toast('❌ فشل الإرسال، تحقق من الاتصال'); }
+  spinBtn('btnConfirmV',false);
+};
+
+window.updatePillarPhoto = function(input){
+  const f=input.files[0]; if(!f) return;
+  const img=new Image(), url=URL.createObjectURL(f);
+  img.onload=async()=>{
+    const MAX=300, c=document.createElement('canvas');
+    let w=img.width, h=img.height;
+    if(w>h){if(w>MAX){h=h*MAX/w;w=MAX;}}else{if(h>MAX){w=w*MAX/h;h=MAX;}}
+    c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+    const data=c.toDataURL('image/jpeg',.72);
+    URL.revokeObjectURL(url);
+    try {
+      const r=sRef(storage,`pillars/${me.pillarId}.jpg`);
+      await uploadString(r,data,'data_url');
+      const photoURL=await getDownloadURL(r);
+      await setDoc(doc(db,'pillars',me.pillarId),{photo:photoURL},{merge:true});
+      toast('✅ تم تحديث صورة الركيزة');
+    } catch(e){ toast('❌ فشل رفع الصورة'); }
+  };
+  img.src=url;
+};
+
+// ══════════════════════════════════════
+// ADD PILLAR MODAL
+// ══════════════════════════════════════
+window.openAddPillarModal = function(){
+  genCode();
+  $('pName').value=''; $('pManager').value=''; $('pPhone').value=''; $('pLocation').value='';
+  openM('mAddPillar');
+};
+
+window.addPillar = async function(){
+  const name=$('pName').value.trim(), manager=$('pManager').value.trim();
+  const phone=$('pPhone').value.trim(), location=$('pLocation').value.trim();
+  const code=$('generatedCode').textContent;
+  if(!name||!manager||code==='—'){ toast('⚠️ أكمل الحقول المطلوبة'); return; }
+  if(pillars.find(p=>p.code===code)){ toast('⚠️ الكود مستخدم، اضغط جديد'); return; }
+  spinBtn('btnAddP',true);
+  try {
+    await addDoc(collection(db,'pillars'),{
+      name,code,manager,phone,location,photo:null,createdAt:serverTimestamp()
+    });
+    closeM('mAddPillar');
+    toast('✅ تمت إضافة الركيزة بنجاح');
+  } catch(e){ toast('❌ فشل الإضافة'); }
+  spinBtn('btnAddP',false);
+};
+
+// ══════════════════════════════════════
+// DELETE WITH CONFIRM
+// ══════════════════════════════════════
+window.confirmDelete = function(type,id,name){
+  const isP=type==='pillar';
+  $('confirmMsg').textContent=`حذف "${name}"؟`;
+  $('confirmSub').textContent=isP?`سيتم حذف الركيزة وجميع ناخبيها (${votersOf(id).length} ناخب)`:'سيتم حذف هذا الناخب نهائياً';
+  $('confirmOkBtn').onclick=()=>{ closeM('mConfirm'); isP?delPillar(id):delVoter(id); };
+  openM('mConfirm');
+};
+
+async function delPillar(id){
+  try {
+    const vSnap=await getDocs(collection(db,'voters'));
+    await Promise.all(vSnap.docs.filter(d=>d.data().pillarId===id).map(d=>deleteDoc(d.ref)));
+    await deleteDoc(doc(db,'pillars',id));
+    toast('🗑️ تم حذف الركيزة');
+  } catch(e){ toast('❌ فشل الحذف'); }
+}
+
+async function delVoter(id){
+  try {
+    await deleteDoc(doc(db,'voters',id));
+    toast('🗑️ تم حذف الناخب');
+    if(me.role==='admin') closeM('mVoterDetail');
+  } catch(e){ toast('❌ فشل الحذف'); }
+}
+
+// ══════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════
+window.exportVotersExcel = function(pid){
+  const list=pid ? voters.filter(v=>v.pillarId===pid) : voters;
+  const rows=list.map((v,i)=>{
+    const p=pillars.find(x=>x.id===v.pillarId);
+    return { '#':i+1, 'الاسم الكامل':v.name, 'رقم البطاقة الوطنية':v.nationalId, 'الركيزة':p?.name||'—', 'المسؤول':p?.manager||'—', 'تاريخ الإضافة':v.addedAt||'—' };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:5},{wch:30},{wch:18},{wch:18},{wch:18},{wch:14}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'الناخبون');
+  XLSX.writeFile(wb,`ناخبون_${pid?pillars.find(p=>p.id===pid)?.name:'الكل'}_${Date.now()}.xlsx`);
+  toast('✅ تم تصدير Excel');
+};
+
+window.exportAllVotersExcel = () => exportVotersExcel('');
+
+window.exportPillarsExcel = function(){
+  const rows=pillars.map((p,i)=>({
+    '#':i+1, 'اسم الركيزة':p.name, 'الكود':p.code, 'المسؤول':p.manager,
+    'الهاتف':p.phone||'—', 'الموقع':p.location||'—', 'عدد الناخبين':votersOf(p.id).length
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:5},{wch:20},{wch:12},{wch:20},{wch:16},{wch:25},{wch:12}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'الركائز');
+  XLSX.writeFile(wb,`ركائز_${Date.now()}.xlsx`);
+  toast('✅ تم تصدير Excel');
+};
+
+window.exportVotersPrint = function(pid){
+  const list=pid ? voters.filter(v=>v.pillarId===pid) : voters;
+  const title=pid ? pillars.find(p=>p.id===pid)?.name : 'جميع الناخبين';
+  const rows=list.map((v,i)=>{
+    const p=pillars.find(x=>x.id===v.pillarId);
+    return `<tr><td>${i+1}</td><td>${v.name}</td><td style="direction:ltr">${v.nationalId}</td><td>${p?.name||'—'}</td><td>${v.addedAt||'—'}</td></tr>`;
+  }).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head>
+    <meta charset="UTF-8"><title>قائمة الناخبين - ${title}</title>
+    <style>
+      body{font-family:'Tajawal',sans-serif;padding:20px;color:#000;}
+      h2{text-align:center;margin-bottom:6px;font-size:18px;}
+      p{text-align:center;color:#555;font-size:12px;margin-bottom:16px;}
+      table{width:100%;border-collapse:collapse;font-size:13px;}
+      th{background:#1a1a3a;color:#C9A84C;padding:8px;border:1px solid #ddd;text-align:right;}
+      td{padding:7px 8px;border:1px solid #ddd;text-align:right;}
+      tr:nth-child(even){background:#f9f9f9;}
+      @media print{body{padding:0;}}
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+  </head><body>
+    <h2>🗳️ قائمة الناخبين — ${title}</h2>
+    <p>إجمالي: ${list.length} ناخب | تاريخ الطباعة: ${new Date().toLocaleDateString('ar-IQ')}</p>
+    <table><thead><tr><th>#</th><th>الاسم الكامل</th><th>رقم البطاقة</th><th>الركيزة</th><th>تاريخ الإضافة</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <script>window.onload=()=>window.print();<\/script>
+  </body></html>`);
+  w.document.close();
+};
+
+// ══════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&$('loginScreen').style.display!=='none') window.login();
+  if(e.key==='Escape') document.querySelectorAll('.overlay.open').forEach(el=>el.classList.remove('open'));
+});
+</script>
+</body>
+</html>
